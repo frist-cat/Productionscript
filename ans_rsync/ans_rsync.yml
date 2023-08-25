@@ -1,0 +1,46 @@
+- hosts: backup
+  tasks:
+    - name: 1.server-side install/updata rsync
+      yum:
+        name: rsync
+        state: installed
+    - name: 2.send the rsync config file to bak-server
+      copy:
+        src: "{{ srcfile}}"
+        dest: /etc/  
+        backup: yes
+    - name: 3.bak-server create virtual user rsync
+      user:
+        name: rsync
+        uid: "{{ rsyncuid }}" 
+        shell: /sbin/nologin       
+        create_home: no
+        state: present
+    - name: 4.create password file
+      lineinfile: 
+        path: "{{ rsyncpassdir }}" 
+        line: "{{ rsyncuser }}"
+        create: true
+        mode: 0600
+    - name: 5.create share directory in bak-server
+      file: 
+        path: /data/
+        owner: rsync 
+        group: rsync
+        state: directory
+    - name: 6.start nfs-service in bak-server
+      systemd:
+        name: rsyncd
+        state: started
+        enabled: yes
+- hosts: nfs
+  tasks:
+    - name: 7.create password file in nfs-service
+      lineinfile: 
+        path: "{{ clientpass }}"
+        line: "{{ rsyncpass }}"
+        create: true
+        mode: 0600
+    - name: 8. text can be omitted
+      shell: "rsync -av /etc/hosts rsync_backup@backup::data --password-file=/etc/rsync.client"
+    
