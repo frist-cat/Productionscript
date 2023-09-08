@@ -1,0 +1,20 @@
+#!/bin/bash
+# author: XYblog
+# Home: ceobaby.cn
+# vars
+pushgateway=10.0.0.41
+hostname=`hostname -I | awk '{print $1}'`
+port=9091
+
+# 设置 Pushgateway 的 URL
+pushgateway_url="http://$pushgateway:$port/metrics/job/tcp_status/intance/$hostname"
+
+# 使用 ss 命令获取 TCP 连接状态，并统计各个连接状态的数量
+status_counts=$(ss -tan | awk 'NR > 1 {print $1}' | sort | uniq -c)
+
+# 将连接状态的数量推送到 Pushgateway
+while read -r line; do
+  count=$(echo "$line" | awk '{print $1}')
+  status=$(echo "$line" | awk '{print $2}')
+  echo "$status $count" | curl --data-binary @- $pushgateway_url
+done <<< "$status_counts"
